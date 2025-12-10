@@ -7,6 +7,14 @@
   let filterPerson = null
   let sortMode = 'newest'
 
+  const SORT_OPTIONS = [
+    { id: 'newest', label: 'Newest' },
+    { id: 'price_asc', label: 'Price ↑' },
+    { id: 'price_desc', label: 'Price ↓' },
+    { id: 'name_asc', label: 'A → Z' },
+    { id: 'name_desc', label: 'Z → A' }
+  ]
+
   const el = (id) => document.getElementById(id)
 
   function fmtPrice(p) { return `$${Number(p).toFixed(2)}` }
@@ -23,13 +31,13 @@
     container.innerHTML = ''
 
     let list = wishes.slice()
-    const q = el('search').value.trim().toLowerCase()
-    if (q) list = list.filter(w => (w.name||'').toLowerCase().includes(q) || (w.item||'').toLowerCase().includes(q))
     if (filterPerson) list = list.filter(w => w.name === filterPerson)
 
     if (sortMode === 'newest') list.sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt))
     else if (sortMode === 'price_asc') list.sort((a,b)=> a.price - b.price)
     else if (sortMode === 'price_desc') list.sort((a,b)=> b.price - a.price)
+    else if (sortMode === 'name_asc') list.sort((a,b)=> (a.item || '').toString().localeCompare((b.item || '').toString()))
+    else if (sortMode === 'name_desc') list.sort((a,b)=> (b.item || '').toString().localeCompare((a.item || '').toString()))
 
     if (!list.length) {
       container.innerHTML = '<div class="text-slate-500">No wishes yet.</div>'
@@ -39,7 +47,7 @@
 
     for (const w of list) {
       const card = document.createElement('div')
-      card.className = 'p-3 border rounded flex items-start justify-between'
+      card.className = 'p-3 border rounded flex items-start justify-between bg-white'
 
       const left = document.createElement('div')
       left.innerHTML = `
@@ -72,7 +80,7 @@
       `
 
       const actions = document.createElement('div')
-      actions.className = 'flex gap-2'
+      actions.className = 'flex gap-2 justify-end'
       if (!w.bought) {
         const buy = document.createElement('button')
         buy.className = 'px-2 py-1 bg-emerald-600 text-white rounded text-sm'
@@ -99,14 +107,44 @@
   function renderChips() {
     const chips = el('chips')
     chips.innerHTML = ''
-    const people = Array.from(new Set(wishes.map(w=>w.name))).sort()
+
+    const baseClasses = 'px-3 py-1 rounded-full border text-sm flex items-center gap-2 transition-colors'
+
+    const allBtn = document.createElement('button')
+    allBtn.className = baseClasses + (filterPerson ? ' bg-white text-slate-700 border-slate-300' : ' bg-sky-600 text-white border-sky-600')
+    allBtn.innerHTML = `<span class="material-icons text-sm">group</span> All`
+    allBtn.onclick = () => { filterPerson = null; render() }
+    chips.appendChild(allBtn)
+
+    const people = Array.from(new Set(wishes.map(w=>w.name).filter(Boolean))).sort((a,b)=>a.localeCompare(b))
     for (const p of people) {
       const btn = document.createElement('button')
-      btn.className = 'px-3 py-1 rounded-full border text-sm flex items-center gap-2'
-      if (p === filterPerson) btn.classList.add('bg-sky-600','text-white')
+      btn.className = baseClasses + (p === filterPerson ? ' bg-sky-600 text-white border-sky-600' : ' bg-white text-slate-700 border-slate-300')
       btn.innerHTML = `<span class="material-icons text-sm">person</span> ${escapeHtml(p)}`
       btn.onclick = () => { filterPerson = (filterPerson === p) ? null : p; render() }
       chips.appendChild(btn)
+    }
+  }
+
+  function renderSortChips() {
+    const container = el('sortChips')
+    if (!container) return
+    container.innerHTML = ''
+
+    const baseClasses = 'px-3 py-1 rounded-full border text-sm flex items-center gap-2 cursor-pointer transition-colors'
+
+    for (const opt of SORT_OPTIONS) {
+      const btn = document.createElement('button')
+      const active = sortMode === opt.id
+      btn.className = baseClasses + (active ? ' bg-sky-600 text-white border-sky-600' : ' bg-white text-slate-700 border-slate-300')
+      btn.textContent = opt.label
+      btn.dataset.sortId = opt.id
+      btn.onclick = () => {
+        sortMode = opt.id
+        renderSortChips()
+        render()
+      }
+      container.appendChild(btn)
     }
   }
 
@@ -121,9 +159,7 @@
 
   function setup() {
     el('refresh').addEventListener('click', load)
-    el('sort').addEventListener('change', (e) => { sortMode = e.target.value; render() })
-    el('search').addEventListener('input', () => render())
-    el('clearFilters').addEventListener('click', () => { filterPerson = null; el('search').value = ''; render() })
+    el('clearFilters').addEventListener('click', () => { filterPerson = null; render() })
 
     el('addForm').addEventListener('submit', (ev) => {
       ev.preventDefault()
@@ -139,6 +175,7 @@
         .then(r=>r.json()).then(() => { f.reset(); load() }).catch(err=>console.error(err))
     })
 
+    renderSortChips()
     load()
   }
 
