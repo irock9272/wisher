@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  // The DB file lives at the project root `./wishes/wisher.db`.
+  // `schema.prisma` is inside `prisma/`, so the relative path must go up one level.
+  url      = "file:../wishes/wisher.db"
+}
+
+model Wish {
+  id         String   @id @default(uuid())
+  name       String
+  item       String
+  price      Float
+  bought     Boolean  @default(false)
+  boughtBy   String?
+  revealDate DateTime?
+  createdAt  DateTime @default(now())
+}
